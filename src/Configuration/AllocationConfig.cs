@@ -15,6 +15,7 @@ public sealed class AllocationConfig
   public List<RoundTypeSequenceEntry> RoundTypeSequence { get; set; } = new();
 
   public bool AwpEnabled { get; set; } = true;
+  public bool AwpQueueEnabled { get; set; } = true;
   public int AwpPerTeam { get; set; } = 1;
   public bool AwpAllowEveryone { get; set; } = false;
   public int AwpLowPlayersThreshold { get; set; } = 4;

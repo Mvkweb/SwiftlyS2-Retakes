@@ -199,6 +199,7 @@ Only on full-buy rounds. Players must toggle `!awp` to be eligible.
 | Field | Default | Description |
 | :--- | :--- | :--- |
 | `Allocation.AwpEnabled` | `true` | Enable AWP allocation |
+| `Allocation.AwpQueueEnabled` | `true` | Enable the fair round-robin AWP queue system |
 | `Allocation.AwpPerTeam` | `1` | Maximum AWPs given per team |
 | `Allocation.AwpAllowEveryone` | `false` | Ignore player preference — everyone is eligible |
 | `Allocation.AwpLowPlayersThreshold` | `4` | Team size at or below which low-population mode activates |

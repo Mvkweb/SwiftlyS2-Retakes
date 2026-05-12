@@ -29,6 +29,7 @@ public sealed class ConVarApplicator
 
     // AWP settings
     ApplyBool("retakes_allocation_awp_enabled", config.Allocation.AwpEnabled);
+    ApplyBool("retakes_allocation_awp_queue_enabled", config.Allocation.AwpQueueEnabled);
     ApplyInt("retakes_allocation_awp_per_team", config.Allocation.AwpPerTeam);
     ApplyBool("retakes_allocation_awp_allow_everyone", config.Allocation.AwpAllowEveryone);
     ApplyInt("retakes_allocation_awp_low_players_threshold", config.Allocation.AwpLowPlayersThreshold);

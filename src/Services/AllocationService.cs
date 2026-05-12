@@ -30,6 +30,7 @@ public sealed class AllocationService : IAllocationService
   private readonly IConVar<int> _fullBuyPct;
 
   private readonly IConVar<bool> _awpEnabled;
+  private readonly IConVar<bool> _awpQueueEnabled;
   private readonly IConVar<int> _awpPerTeam;
   private readonly IConVar<bool> _awpAllowEveryone;
   private readonly IConVar<int> _awpLowPlayersThreshold;
@@ -50,6 +51,10 @@ public sealed class AllocationService : IAllocationService
   private readonly IRetakesStateService _state;
   private readonly IDamageReportService _damageReport;
 
+  // AWP Queue state
+  private long _awpTicketCounter = 0;
+  private readonly Dictionary<ulong, long> _awpQueueTickets = new();
+
   public AllocationService(ISwiftlyCore core, ILogger logger, Random random, IPlayerPreferencesService prefs, IRetakesConfigService config, IRetakesStateService state, IDamageReportService damageReport)
   {
     _core = core;
@@ -68,6 +73,7 @@ public sealed class AllocationService : IAllocationService
     _fullBuyPct = core.ConVar.CreateOrFind("retakes_round_type_pct_full", "Random round type pct: full", 50, 0, 100);
 
     _awpEnabled = core.ConVar.CreateOrFind("retakes_allocation_awp_enabled", "Enable AWP preference allocation on FullBuy", true);
+    _awpQueueEnabled = core.ConVar.CreateOrFind("retakes_allocation_awp_queue_enabled", "Enable fair round-robin AWP queue", true);
     _awpPerTeam = core.ConVar.CreateOrFind("retakes_allocation_awp_per_team", "Number of AWPs per team on FullBuy", 1, 0, 5);
     _awpAllowEveryone = core.ConVar.CreateOrFind("retakes_allocation_awp_allow_everyone", "Ignore player preference and allow everyone to receive AWP", false);
     _awpLowPlayersThreshold = core.ConVar.CreateOrFind("retakes_allocation_awp_low_players_threshold", "Number of players on a team to consider 'low population'", 4, 0, 64);
@@ -494,10 +500,29 @@ public sealed class AllocationService : IAllocationService
 
     if (candidates.Count == 0) return Array.Empty<ulong>();
 
-    if (candidates.Count <= perTeam) return candidates.Select(p => p.SteamID).ToList();
+    if (candidates.Count <= perTeam)
+    {
+      var all = candidates.Select(p => p.SteamID).ToList();
+      if (_awpQueueEnabled.Value)
+      {
+        foreach (var sid in all)
+        {
+          _awpTicketCounter++;
+          _awpQueueTickets[sid] = _awpTicketCounter;
+        }
+      }
+      return all;
+    }
 
     var selected = new List<ulong>(perTeam);
     var pool = candidates.ToList();
+
+    if (_awpQueueEnabled.Value)
+    {
+      pool = pool.OrderBy(p => _awpQueueTickets.TryGetValue(p.SteamID, out var ticket) ? ticket : 0)
+                 .ThenBy(p => _random.Next())
+                 .ToList();
+    }
 
     var requiredFlag = (_awpPriorityFlag.Value ?? string.Empty).Trim();
     var pct = Math.Clamp(_awpPriorityPct.Value, 0, 100);
@@ -524,9 +549,16 @@ public sealed class AllocationService : IAllocationService
       var usePriority = priorityPool is not null && priorityPool.Count > 0 && _random.Next(0, 100) < pct;
       var source = usePriority ? priorityPool! : pool;
 
-      var idx = _random.Next(source.Count);
+      var idx = _awpQueueEnabled.Value ? 0 : _random.Next(source.Count);
       var picked = source[idx];
       selected.Add(picked.SteamID);
+      
+      if (_awpQueueEnabled.Value)
+      {
+        _awpTicketCounter++;
+        _awpQueueTickets[picked.SteamID] = _awpTicketCounter;
+      }
+
       pool.RemoveAll(p => p.SteamID == picked.SteamID);
     }
 
